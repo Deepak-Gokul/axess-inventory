@@ -13,7 +13,7 @@ const updateItem = (id, formData) => API.put(`/dashboard/${id}`, formData, { hea
 
 // Logs / Item view
 const getItemLogs = (id) => API.get(`/dashboard/item/${id}/logs`);
-const viewItem = (id) => API.get(`/dashboard/items/${id}`);
+const viewItem = (id) => API.get(`/items/${id}`);
 const toggleItemStatus = (id, location = null) => API.patch(`/logs/${id}/status`, { location });
 
 // Bulk operations
