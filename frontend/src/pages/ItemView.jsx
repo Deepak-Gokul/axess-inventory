@@ -147,6 +147,7 @@ const ItemView = () => {
           <p><span className="font-semibold text-gray-800">Description:</span> {item.description|| '-'}</p>
           <p><span className="font-semibold text-gray-800">HS Code:</span> {item.hsCode || '-'}</p>
           <p><span className="font-semibold text-gray-800">Manufacturer:</span> {item.manufacturer|| '-'}</p>
+          <p><span className="font-semibold text-gray-800">Warehouse:</span> {item.warehouse|| '-'}</p>
           <p><span className="font-semibold text-gray-800">Status:</span> {status}</p>
           <p><span className="font-semibold text-gray-800">Assigned Project:</span> {assignedProject || '-'}</p>
           <p><span className="font-semibold text-gray-800">Location:</span> {location || '-'}</p>
