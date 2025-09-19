@@ -11,7 +11,7 @@ const deleteItem = (id)=>API.delete(`dashboard/${id}`)
 const getItemLogs = (id)=>API.get(`/dashboard/item/${id}/logs`)
 const viewItem = (id)=>API.get(`/items/${id}`)
 const toggleItemStatus =(id,location = null)=>API.patch(`/logs/${id}/status`,{location});
-const adminLogin = (email, password) => API.post('/dashboard/login', { email, password });
+const adminLogin = (email, password) => API.post('/dashboard/login', { email, password },{withCredentials:true});
 const updateItem = (id, formData) =>
   API.put(`/dashboard/${id}`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
