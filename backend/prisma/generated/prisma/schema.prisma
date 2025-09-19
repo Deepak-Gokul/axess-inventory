@@ -1,0 +1,58 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Item {
+  id                String    @id // serial number
+  serialNo          String // unique string for QR/public lookup
+  name              String
+  category          String?
+  subCategory       String?
+  description       String?
+  model             String?
+  manufacturer      String?
+  hsCode            String?
+  warehouse         String?
+  unitPrice         Float?
+  calibrationType   String?
+  calibrationStart  DateTime?
+  calibrationExpiry DateTime?
+  assignedProject   String? // taken from logs
+  status            String    @default("IN")
+  certificate       String?
+  qrCode            String?
+  received          Boolean   @default(false)
+  logs              Log[]
+}
+
+model Log {
+  id        Int      @id @default(autoincrement())
+  item      Item     @relation(fields: [itemId], references: [id])
+  itemId    String
+  action    String
+  timestamp DateTime @default(now())
+  location  String?
+  project   String?
+}
+
+enum Status {
+  IN
+  OUT
+}
+
+enum Action {
+  IN
+  OUT
+}
