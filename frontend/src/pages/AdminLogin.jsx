@@ -35,11 +35,12 @@ const AdminLogin = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-        console.log(err)
-      setError(err.response?.data?.error || 'Login failed');
-      console.log(error)
-      console.log(err.response?.data)
-      console.log(err.response?.data?.error)
+      console.log("Login error:", err);
+      const msg =
+        typeof err.response?.data?.error === "string"
+          ? err.response.data.error
+          : err.response?.data?.message || "Login failed";
+      setError(msg);
     }
   };
 
