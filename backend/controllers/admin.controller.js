@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 const prisma = new PrismaClient();
 import axios from 'axios';
 import * as XLSX from 'xlsx';
-import fs from 'fs';
+
 
 
 // Download QR code
@@ -46,7 +46,7 @@ export const adminLogin = (req, res) => {
   res.cookie('token', token, {
     httpOnly: true,
     secure: true,
-    sameSite: 'None',
+    sameSite: 'Strict',
     maxAge: 60 * 60 * 1000,
   });
 
@@ -197,8 +197,8 @@ export const getAllItems = async (req, res) => {
 import sharp from 'sharp';
 
 
-// Helper function to create QR with text labels
-const createQRWithText = async (qrData, assetId, itemName, outputPath) => {
+// Helper function to create QR with text labels and return a Buffer
+const createQRWithText = async (qrData, assetId, itemName) => {
   try {
     // Generate QR code to buffer
     const qrBuffer = await QRCode.toBuffer(qrData, {
@@ -231,7 +231,7 @@ const createQRWithText = async (qrData, assetId, itemName, outputPath) => {
       </svg>`;
 
     // Create the final image composition
-    const finalImage = await sharp({
+    const finalImageBuffer = await sharp({
       create: {
         width: 400,
         height: 380,
@@ -260,9 +260,9 @@ const createQRWithText = async (qrData, assetId, itemName, outputPath) => {
       }
     ])
     .png()
-    .toFile(outputPath);
+    .toBuffer();
 
-    return outputPath;
+    return finalImageBuffer;
   } catch (error) {
     console.error('Error creating QR with text:', error);
     throw error;
@@ -326,17 +326,23 @@ export const createItem = async (req, res) => {
       }
     });
 
-    // Generate QR Code with text labels
-    const qrTempPath = `./uploads/qrcodes/item-${id}.png`;
+    // Generate QR Code with text labels as buffer
     const qrUrlString = `${process.env.CLIENT_URL || 'http://localhost:5175'}/item-view/${id}`;
-    
-    // Create QR with Asset ID and Item Name
-    await createQRWithText(qrUrlString, id, name, qrTempPath);
-    
-    // Upload to Cloudinary
-    const qrUploadRes = await uploadOnCloudinary(qrTempPath, { 
-      public_id: `qrcodes/${id}`,
-      resource_type: 'image'
+    const qrBuffer = await createQRWithText(qrUrlString, id, name);
+
+    // Upload buffer to Cloudinary
+    const qrUploadRes = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          public_id: `qrcodes/${id}`,
+          resource_type: 'image'
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      uploadStream.end(qrBuffer);
     });
     const qrUrl = qrUploadRes ? qrUploadRes.secure_url : null;
 
@@ -345,7 +351,7 @@ export const createItem = async (req, res) => {
       where: { id },
       data: { qrCode: qrUrl }
     });
-    
+
     res.status(201).json({ success: true, item: updatedItem });
   } catch (error) {
     console.error(error);
@@ -384,24 +390,22 @@ export const bulkCreateItems = async (req, res) => {
       return res.status(400).json({ success: false, error: "No file uploaded" });
     }
 
-    const fileBuffer = fs.readFileSync(req.file.path);
-const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+    // Use in-memory buffer from multer
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
     // const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets["Master Sheet"];
     const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-const headers = rawData[1]; // first row
-const dataRows = rawData.slice(1);
+    const headers = rawData[1];
+    const dataRows = rawData.slice(1);
 
-const rows = dataRows.map((row) => {
-  const obj = {};
-  row.forEach((cell, idx) => {
-    const key = headers[idx] || `col_${idx}`;
-    obj[key] = cell;
-  });
-  return normalizeRow(obj); // still map to DB fields
-});
-    // console.log(headers)
-    
+    const rows = dataRows.map((row) => {
+      const obj = {};
+      row.forEach((cell, idx) => {
+        const key = headers[idx] || `col_${idx}`;
+        obj[key] = cell;
+      });
+      return normalizeRow(obj); // still map to DB fields
+    });
 
     const itemsCreated = [];
 
@@ -427,15 +431,15 @@ const rows = dataRows.map((row) => {
 
       const item = await prisma.item.create({
         data: {
-          id,        // primary key
-    serialNo: serialNo ? String(serialNo).trim() : "", // old serial number
+          id,
+          serialNo: serialNo ? String(serialNo).trim() : "",
           name,
-          category:category?String(category):"",
-          subCategory:subCategory?String(subCategory):"",
-          description:description?String(description):"",
-          model:model?String(model):"",
-          manufacturer:manufacturer?String(manufacturer):"",
-          hsCode:hsCode ? String(hsCode) : "",
+          category: category ? String(category) : "",
+          subCategory: subCategory ? String(subCategory) : "",
+          description: description ? String(description) : "",
+          model: model ? String(model) : "",
+          manufacturer: manufacturer ? String(manufacturer) : "",
+          hsCode: hsCode ? String(hsCode) : "",
           unitPrice: unitPrice ? parseFloat(unitPrice) : null,
           calibrationType,
           status: "IN",
@@ -443,27 +447,30 @@ const rows = dataRows.map((row) => {
         }
       });
 
-      const qrTempPath = `./uploads/qrcodes/item-${id}.png`;
-  const qrUrlString = `${process.env.CLIENT_URL || 'http://localhost:5175'}/item-view/${id}`;
-  
-  // Use the helper to create QR with assetId and name
-  await createQRWithText(qrUrlString, id, name, qrTempPath);
-
-  const qrUploadRes = await uploadOnCloudinary(qrTempPath, { 
-    public_id: `qrcodes/${id}`,
-    resource_type: 'image'
-  });
-  const qrUrl = qrUploadRes ? qrUploadRes.secure_url : null;
-
-  await prisma.item.update({
-    where: { id },
-    data: { qrCode: qrUrl }
-  });
-
-  itemsCreated.push(item);
+      const qrUrlString = `${process.env.CLIENT_URL || 'http://localhost:5175'}/item-view/${id}`;
+      // Use the helper to create QR with assetId and name as buffer
+      const qrBuffer = await createQRWithText(qrUrlString, id, name);
+      // Upload buffer to Cloudinary
+      const qrUploadRes = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            public_id: `qrcodes/${id}`,
+            resource_type: 'image'
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        uploadStream.end(qrBuffer);
+      });
+      const qrUrl = qrUploadRes ? qrUploadRes.secure_url : null;
+      await prisma.item.update({
+        where: { id },
+        data: { qrCode: qrUrl }
+      });
+      itemsCreated.push(item);
     }
-
-    fs.unlinkSync(req.file.path);
 
     res.json({ success: true, created: itemsCreated.length });
   } catch (error) {
