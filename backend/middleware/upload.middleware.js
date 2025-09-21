@@ -1,16 +1,7 @@
-import fs from "fs";
 import multer from "multer";
-import path from "path";
 
-// Save uploaded PDFs in uploads/certificates
-const pdfStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/certificates");
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
+// Use memory storage for certificates
+const pdfStorage = multer.memoryStorage();
 
 export const uploadCertificate = multer({
   storage: pdfStorage,
@@ -23,15 +14,8 @@ export const uploadCertificate = multer({
   },
 });
 
-// Save uploaded Excels in uploads/excels
-const excelStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/excels");
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
+// Use memory storage for Excels
+const excelStorage = multer.memoryStorage();
 
 export const uploadExcelFile = multer({
   storage: excelStorage,
@@ -47,11 +31,3 @@ export const uploadExcelFile = multer({
   },
 });
 
-// Helper function to delete a file asynchronously
-export function deleteFile(filePath) {
-  fs.unlink(filePath, (err) => {
-    if (err) {
-      console.error(`Failed to delete file at ${filePath}:`, err);
-    }
-  });
-}
