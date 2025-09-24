@@ -15,31 +15,34 @@ const AdminLogin = () => {
   const redirect = params.get("redirect");
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError('');
-  try {
-    const res = await adminLogin(email, password);
-    const role = res.data.role;
-
-    if (role === 'admin') {
-      if (redirect && (redirect === '/item' || redirect.startsWith('/item'))) {
-        navigate(redirect); // redirect without reload
+    e.preventDefault();
+    setError('');
+    try {
+      const res = await adminLogin(email, password); // login sets HttpOnly cookie and returns role
+      const role = res.data.role;
+      if (role === 'admin') {
+        // Allow admin to access /item or /item/*
+        if (redirect && (redirect === '/item' || redirect.startsWith('/item'))) {
+          navigate(redirect);
+          return;
+        }
+        setError('Normal admin cannot access dashboard.');
         return;
       }
-      setError('Normal admin cannot access dashboard.');
-      return;
+      if (redirect) {
+        navigate(redirect);
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      console.log("Login error:", err);
+      const msg =
+        typeof err.response?.data?.error === "string"
+          ? err.response.data.error
+          : err.response?.data?.message || "Login failed";
+      setError(msg);
     }
-
-    navigate(redirect || '/dashboard'); // safe redirect
-  } catch (err) {
-    console.log("Login error:", err);
-    const msg =
-      typeof err.response?.data?.error === "string"
-        ? err.response.data.error
-        : err.response?.data?.message || "Login failed";
-    setError(msg);
-  }
-};
+  };
 
   return (
     <div className="min-h-screen flex flex-col gap-5 items-center justify-center bg-gray-100">
