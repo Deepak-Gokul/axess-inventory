@@ -103,7 +103,7 @@ export const updateItem = async (req, res) => {
       const uploadRes = await uploadOnCloudinary(req.file.buffer, {
     resource_type: "raw",
     format:'pdf',// explicitly for PDF
-    public_id: `certificates/${assetId}` // optional naming
+    public_id: `certificates/${id}` // optional naming
   });
       if (uploadRes) updateData.certificate = uploadRes.secure_url;
     }
@@ -303,7 +303,7 @@ export const createItem = async (req, res) => {
      const uploadRes = await uploadOnCloudinary(req.file.buffer, {
     resource_type: "raw",
     format:'pdf',// explicitly for PDF
-    public_id: `certificates/${assetId}` // optional naming
+    public_id: `certificates/${id}` // optional naming
   });
       if (uploadRes) certificateUrl = uploadRes.secure_url;
     }
