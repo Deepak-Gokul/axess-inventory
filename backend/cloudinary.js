@@ -11,15 +11,32 @@ cloudinary.config({
 export const uploadOnCloudinary = async (localFilePath, options = {}) => {
   try {
     if (!localFilePath) return null;
-    const res = await cloudinary.uploader.upload(localFilePath, {
-      resource_type: "auto", // detects pdf/png automatically
-      ...options
-    });
-    fs.unlinkSync(localFilePath); // remove temp file
-    return res; // contains res.secure_url
+
+    let res;
+
+    if (Buffer.isBuffer(localFilePath)) {
+      // Detect type: PDF or image
+      const isPDF = localFilePath.slice(0, 4).toString() === '%PDF';
+      const mimeType = isPDF ? 'application/pdf' : 'image/png'; // you can default to PNG
+      const base64String = localFilePath.toString("base64");
+      res = await cloudinary.uploader.upload(`data:${mimeType};base64,${base64String}`, {
+        resource_type: "auto",
+        ...options
+      });
+    } else if (typeof localFilePath === "string") {
+      res = await cloudinary.uploader.upload(localFilePath, {
+        resource_type: "auto",
+        ...options
+      });
+      fs.unlinkSync(localFilePath); // remove temp file
+    } else {
+      return null;
+    }
+
+    return res;
   } catch (error) {
     console.error("Cloudinary upload failed:", error);
-    fs.unlinkSync(localFilePath); // remove temp file even if failed
+    if (typeof localFilePath === "string") fs.unlinkSync(localFilePath);
     return null;
   }
 };
